@@ -1,0 +1,21 @@
+name: TelegramBridge
+main: TelegramBridgePlugin
+prefix: tg-bridge
+version: 0.0.2
+author: hedgehoi
+website: https://github.com/dmytrohoi/tg-bridge-pyplugin
+commands:
+    telegram:
+        description: Send message to Telegram chat
+        aliases: tg
+        usage: /&lt;command&gt; &lt;text&gt;
+
+    telegram-chat-response:
+        description: Get response from Telegram Bot (Broadcast message to all players)
+        aliases: tg-response
+        permission: minecraft.command.op
+
+    tg-bridge-config:
+        description: Plugin settings
+        aliases: [tg-config, telegram-config]
+        permission: minecraft.command.op

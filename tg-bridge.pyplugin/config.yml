@@ -1,0 +1,33 @@
+# TelegramBridge v0.0.2 (on PyPlugins https://github.com/pyplugins/pyplugins)
+# Link: https://github.com/dmytrohoi/tg-bridge-pyplugin
+#
+# NOTE: Reload config after changing - /tg-bridge-config reload
+
+## WARNING: Required fields
+# Telegram token (https://core.telegram.org/bots#6-botfather)
+TOKEN:
+# Server chat Telegram ID (https://stackoverflow.com/questions/32423837/telegram-bot-how-to-get-a-group-chat-id)
+CHAT_ID:
+
+## TEMPLATES NOTE:
+#   - available HTML tag  (https://core.telegram.org/bots/api#html-style)
+#   - encode <, > and & symbols to HTML entities - < with &lt;, > with &gt; and & with &amp;
+#   - use <br/> for newline (aka \n)
+#   - placeholders: {message_text} and {username} (WARNING: only for outcoming_msg_template and outcoming_msg_broadcast_template)
+#   - Minecraft formating is available for outcoming_msg_broadcast_template and incoming_msg_template (https://minecraft.gamepedia.com/Formatting_codes)
+outcoming_msg_template: '<b>MINECRAFT &lt;{username}&gt;</b>:<br/>{message_text}'
+outcoming_msg_broadcast_template: '[ §5Telegram Chat§r §5§l<<§r ] <{username}> {message_text}'
+incoming_msg_template: '[ §5Telegram Chat§r §5§l>>§r ] {message_text}'
+
+
+## Notifications
+# The message will be sent to the Telegram chat when the Server starts or shuts down
+# Placeholders:
+#   {ip} - Server IP and Port
+#   {motd} - Server MOTD
+startup_notification:
+    enable: true
+    template: "Server {ip} started!"
+shutdown_notification:
+    enable: true
+    template: "Server {ip} closed."

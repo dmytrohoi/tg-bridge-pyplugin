@@ -50,3 +50,5 @@ linking:
     button_text: "Confirm"
     # - please set userid as first parameter in code and separate by ":"
     code_validation_regexp: \d+
+    # Please realize caught of inline_button in format "callback_data":"tgb:link:{code}:{username}"
+    callback_data_template: "tgb:link:{code}:{username}"

@@ -130,12 +130,13 @@ class TelegramChatCommands(PythonCommandExecutor):
             return []
 
     def linkCommand(self, sender, command, label, args):
+        username = sender.getName()
         section = self.plugin.config.get("linking")
         if not section or not section.getBoolean("enable"):
             sender.sendMessage(self.plugin.placeholder + " Linking disabled.")
             return True
 
-        if sender.getName() == "CONSOLE":
+        if username == "CONSOLE":
             sender.sendMessage(self.plugin.placeholder + " Command only for player in-game usage")
             return True
 
@@ -157,7 +158,7 @@ class TelegramChatCommands(PythonCommandExecutor):
 
         self.plugin.logger.info(
             '{player} try to link Minecraft account to Telegram user with code: {code}'.format(
-                player=sender.getName(),
+                player=username,
                 code=code
             )
         )
@@ -166,7 +167,7 @@ class TelegramChatCommands(PythonCommandExecutor):
             "message_text_template",
             "Player with username <b>{username}</b> try to link Minecraft account to this Telegram account"
         ).format(
-            username=sender.getName()
+            username=username
         )
 
         #Validate code
@@ -175,7 +176,13 @@ class TelegramChatCommands(PythonCommandExecutor):
             sender.sendMessage(self.plugin.placeholder + " Invalid code, please check code or call Server Admin.")
             return True
 
-        result = self.plugin.sendTelegramMessage(text, button_confirm_code=code)
+        result = self.plugin.sendTelegramMessage(
+            text,
+            linking_data={
+                "code": code,
+                "username": username
+            }
+        )
         if result:
             sender.sendMessage(self.plugin.placeholder + " Please check your Telegram dialog and confirm linking.")
         else:
@@ -249,7 +256,7 @@ class TelegramBridgePlugin(PythonPlugin):
         )
         self.sendTelegramMessage(text)
 
-    def sendTelegramMessage(self, text, button_confirm_code=None):
+    def sendTelegramMessage(self, text, linking_data=None):
 
         bot_token = self.config.getString('TOKEN')
 
@@ -267,24 +274,30 @@ class TelegramBridgePlugin(PythonPlugin):
         }
 
         # Link command
-        if button_confirm_code:
-            # Default button text
-            confirm_button_text = "Confirm linking"
-
-            # Check config
-            linking_section = self.config.get('linking')
-            if linking_section and linking_section.getString("button_text"):
-                confirm_button_text = linking_section.getString("button_text")
+        if linking_data:
+            code = linking_data["code"]
+            linking_section = self.config.get("linking")
+            confirm_button_text = linking_section.getString(
+                "button_text",
+                "Confirm linking"
+            )
+            callback_data = linking_section.getString(
+                'callback_data_template',
+                "tcp:link:{code}:{username}"
+            ).format(
+                code=code,
+                username=linking_data["username"],
+            )
 
             data_options['reply_markup'] = json.dumps({
                 "inline_keyboard": [
                     [{
                         "text": confirm_button_text,
-                        "callback_data": "tcp:link:" + button_confirm_code
+                        "callback_data": callback_data
                     }]
                 ]
             })
-            user_id = button_confirm_code.split(":")[0] if ":" in button_confirm_code else button_confirm_code
+            user_id = code.split(":")[0] if ":" in code else code
             if user_id.startswith("-"):
                 return False
 
@@ -302,13 +315,12 @@ class TelegramBridgePlugin(PythonPlugin):
 
         # Replace "<br/>" to new line char
         data = urllib.urlencode(data_options).replace("%3Cbr%2F%3E", "%0A")
-        telegramRequestURL = "https://api.telegram.org/bot{bot_token}/sendMessage?{data}".format(
-            bot_token=bot_token,
-            data=data
+        telegramRequestURL = "https://api.telegram.org/bot{bot_token}/sendMessage".format(
+            bot_token=bot_token
         )
 
         # Send message to Telegram
-        raw_response = urllib.urlopen(telegramRequestURL)
+        raw_response = urllib.urlopen(telegramRequestURL, data=data)
         response = raw_response.read().decode('utf-8')
 
         result = '"ok":true' in response

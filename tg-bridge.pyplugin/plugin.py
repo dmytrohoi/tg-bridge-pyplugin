@@ -4,26 +4,46 @@
 """
 Plugin: TelegramBridge (https://github.com/dmytrohoi/tg-bridge-pyplugin)
 File: plugin.py
-Version: 0.0.2
+Version: 0.1.0
 Author: hedgehoi (Dmytro Hoi)
 License: MIT License
 
 Dependencies:
-    - PyPlugins v0.0.1 / https://github.com/pyplugins/pyplugins
+    - PyPlugins  >0.0.1 / https://github.com/pyplugins/pyplugins
 
 """
 import urllib
+import json
+import re
 
 
 class TelegramChatCommands(PythonCommandExecutor):
     commands = [
         PyCommand('telegram', 'telegramCommand', 'telegramOnTabComplete'),
-        PyCommand('telegram-chat-response', 'responseCommand', 'telegramOnTabComplete')
+        PyCommand('telegram-chat-response', 'responseCommand', 'telegramOnTabComplete'),
+        PyCommand('link', 'linkCommand', 'linkOnTabComplete')
     ]
 
     def telegramCommand(self, sender, command, label, args):
+
         sender_name = sender.getName()
         message_text = " ".join(args)
+        self.plugin.logger.info('{sender} try to send message to Telegram: {message}'.format(
+            sender=sender_name,
+            message=message_text
+        ))
+
+        bridge_section = self.plugin.config.get("bridge")
+        if not bridge_section \
+           or not bridge_section.getBoolean("enable") \
+           or not bridge_section.getString("chat_id"):
+            sender.sendMessage(
+                self.plugin.placeholder
+                + " Bridge disabled."
+            )
+            self.plugin.logger.info('Bridge disabled.')
+            return True
+
         if not message_text:
             sender.sendMessage(
                 self.plugin.placeholder
@@ -31,12 +51,7 @@ class TelegramChatCommands(PythonCommandExecutor):
             )
             return True
 
-        self.plugin.logger.info('{sender} try to send message to Telegram: {message}'.format(
-            sender=sender_name,
-            message=message_text
-        ))
-
-        template = self.plugin.config.getString(
+        template = bridge_section.getString(
             'outcoming_msg_template',
             "{message_text}"
         )
@@ -55,7 +70,7 @@ class TelegramChatCommands(PythonCommandExecutor):
                 + " Message sent to Telegram Chat."
             )
 
-            bc_message = self.plugin.config.getString(
+            bc_message = bridge_section.getString(
                 'outcoming_msg_broadcast_template',
                 "[ Telegram Chat << ] <{username}> {message_text}"
             ).format(
@@ -91,18 +106,85 @@ class TelegramChatCommands(PythonCommandExecutor):
             )
         )
 
-        bc_message = self.plugin.config.getString(
+        bridge_section = self.plugin.config.get("bridge")
+        if not bridge_section or not bridge_section.getBoolean("enable"):
+            self.plugin.logger.info('Bridge not enabled.')
+            return True
+
+        bc_message = bridge_section.getString(
             "incoming_msg_template",
             "[ Telegram Chat >> ] {message_text}"
         ).format(message_text=message_text)
 
         Bukkit.getServer().broadcastMessage(bc_message)
-        sender.sendMessage(self.plugin.placeholder + " Message sent to Minecraft Chat.")
+        sender.sendMessage(
+            self.plugin.placeholder
+            + " Message sent to Minecraft Chat."
+        )
         return True
 
     def telegramOnTabComplete(self, sender, command, alias, args):
         if len(args) == 1:
             return ['<text for message>']
+        else:
+            return []
+
+    def linkCommand(self, sender, command, label, args):
+        section = self.plugin.config.get("linking")
+        if not section or not section.getBoolean("enable"):
+            sender.sendMessage(self.plugin.placeholder + " Linking disabled.")
+            return True
+
+        if sender.getName() == "CONSOLE":
+            sender.sendMessage(self.plugin.placeholder + " Command only for player in-game usage")
+            return True
+
+        if len(args) > 1:
+            sender.sendMessage(
+                self.plugin.placeholder + " You sent more than 1 argument with /link command"
+            )
+            return True
+        elif not len(args):
+            sender.sendMessage(
+                self.plugin.placeholder + " To connect Minecraft account and "\
+                "Telegram account please go to Server's Telegram bot and "\
+                "perform /link command to get start!"
+            )
+            return True
+
+        # User code
+        code = args[0]
+
+        self.plugin.logger.info(
+            '{player} try to link Minecraft account to Telegram user with code: {code}'.format(
+                player=sender.getName(),
+                code=code
+            )
+        )
+
+        text = section.getString(
+            "message_text_template",
+            "Player with username <b>{username}</b> try to link Minecraft account to this Telegram account"
+        ).format(
+            username=sender.getName()
+        )
+
+        #Validate code
+        validation_regex = section.getString("code_validation_regexp")
+        if validation_regex and not re.match(r'^' + validation_regex + r'$', code):
+            sender.sendMessage(self.plugin.placeholder + " Invalid code, please check code or call Server Admin.")
+            return True
+
+        result = self.plugin.sendTelegramMessage(text, button_confirm_code=code)
+        if result:
+            sender.sendMessage(self.plugin.placeholder + " Please check your Telegram dialog and confirm linking.")
+        else:
+            sender.sendMessage(self.plugin.placeholder + " Somethink went wrong, please check code or call Server Admin.")
+        return True
+
+    def linkOnTabComplete(self, sender, command, alias, args):
+        if len(args) == 1:
+            return ['<telegram bot code>']
         else:
             return []
 
@@ -117,13 +199,7 @@ class TelegramBridgePlugin(PythonPlugin):
 
         # Add bStats metrics
         self.add_bstats(8809)
-        self.add_configuration(
-            available_options=[
-                "outcoming_msg_template",
-                "outcoming_msg_broadcast_template",
-                "incoming_msg_template"
-            ]
-        )
+        self.add_configuration()
         self.logger.info("plugin enabled!")
 
         bot_token = self.config.getString('TOKEN')
@@ -133,24 +209,25 @@ class TelegramBridgePlugin(PythonPlugin):
                 "Plugin is not configured, please set TOKEN in config.yml"
             )
 
-        chat_id = self.config.getString('CHAT_ID')
-        if not chat_id:
-            self.logger.warning(
-                "Plugin is not configured, please set CHAT_ID in config.yml"
-            )
-        # Startup notification
-        self.notification("startup_notification")
+        bridge = self.config.get('bridge')
+        if not bridge or not bridge.getString("chat_id"):
+            self.logger.warning("Bridge disabled in config.yml")
+        else:
+            # Startup notification
+            self.notification("startup_notification")
 
     def onDisable(self):
         # Shutdown notification
-        self.notification("shutdown_notification")
+        bridge = self.config.get('bridge')
+        if bridge and bridge.getString("chat_id"):
+            self.notification("shutdown_notification")
 
         self.logger.info("plugin disabled!")
 
     def notification(self, name):
-        section = self.config.get(name)
+        section = self.config.get("bridge").get(name)
         if not section or (section and not section.getBoolean('enable')):
-            self.logger.info("{} skipped".format(name))
+            self.logger.info("{} disabled.".format(name.replace("_", " ").capitalize()))
             return
 
         self.logger.info("{} option is enabled!".format(name))
@@ -172,14 +249,13 @@ class TelegramBridgePlugin(PythonPlugin):
         )
         self.sendTelegramMessage(text)
 
-    def sendTelegramMessage(self, text):
+    def sendTelegramMessage(self, text, button_confirm_code=None):
 
-        chat_id = self.config.getString('CHAT_ID')
         bot_token = self.config.getString('TOKEN')
 
-        if not chat_id or not bot_token:
+        if not bot_token:
             self.logger.warning(
-                "Plugin is not configured, please set CHAT_ID and TOKEN in "
+                "Plugin is not configured, please set TOKEN in "
                 "config.yml"
             )
             return False
@@ -187,9 +263,42 @@ class TelegramBridgePlugin(PythonPlugin):
         # Make data query for url
         data_options = {
             'text': text,
-            'chat_id': chat_id,
             'parse_mode': 'HTML'
         }
+
+        # Link command
+        if button_confirm_code:
+            # Default button text
+            confirm_button_text = "Confirm linking"
+
+            # Check config
+            linking_section = self.config.get('linking')
+            if linking_section and linking_section.getString("button_text"):
+                confirm_button_text = linking_section.getString("button_text")
+
+            data_options['reply_markup'] = json.dumps({
+                "inline_keyboard": [
+                    [{
+                        "text": confirm_button_text,
+                        "callback_data": "tcp:link:" + button_confirm_code
+                    }]
+                ]
+            })
+            user_id = button_confirm_code.split(":")[0] if ":" in button_confirm_code else button_confirm_code
+            if user_id.startswith("-"):
+                return False
+
+            data_options["chat_id"] = user_id
+        else:
+            bridge_section = self.config.get('bridge')
+            if not bridge_section or not bridge_section.getString('chat_id'):
+                self.logger.warning(
+                    "Bridge is not configured, please set 'bridge' > 'chat_id' in "
+                    "config.yml"
+                )
+                return False
+
+            data_options["chat_id"] = bridge_section.getString('chat_id')
 
         # Replace "<br/>" to new line char
         data = urllib.urlencode(data_options).replace("%3Cbr%2F%3E", "%0A")

@@ -1,7 +1,7 @@
 name: TelegramBridge
 main: TelegramBridgePlugin
 prefix: tg-bridge
-version: 0.0.2
+version: 0.1.0
 author: hedgehoi
 website: https://github.com/dmytrohoi/tg-bridge-pyplugin
 commands:
@@ -19,3 +19,8 @@ commands:
         description: Plugin settings
         aliases: [tg-config, telegram-config]
         permission: minecraft.command.op
+
+    link:
+        description: Link Minecraft account to Telegram account
+        aliases: tg-link
+        usage: /&lt;command&gt; &lt;telegram code&gt;

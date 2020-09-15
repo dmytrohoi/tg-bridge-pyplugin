@@ -28,7 +28,7 @@ jobs:
 
       # Runs a set of commands using the runners shell
       - name: Rename file
-        run: if -n "${{ secrets.RESULT_EXT }}"; then  mkdir output && mv ${{ secrets.RESULT_NAME }}.zip output/${{ secrets.RESULT_NAME }}.${{ secrets.RESULT_EXT }}; fi
+        run: if [ -n "${{ secrets.RESULT_EXT }}" ]; then  mkdir output && mv ${{ secrets.RESULT_NAME }}.zip output/${{ secrets.RESULT_NAME }}.${{ secrets.RESULT_EXT }}; fi
 
       - name: Create Release
         id: create_release

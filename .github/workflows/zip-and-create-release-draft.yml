@@ -24,7 +24,7 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: ZIP directory
-        run: zip -d ./${{ secrets.RESULT_NAME }}.zip ./${{ secrets.DIRECTORY_TO_ZIP }}/
+        run: zip ${{ secrets.RESULT_NAME }}.zip ${{ secrets.DIRECTORY_TO_ZIP }}
 
       # Runs a set of commands using the runners shell
       - name: Rename file

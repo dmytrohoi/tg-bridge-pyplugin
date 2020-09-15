@@ -28,7 +28,7 @@ jobs:
 
       # Runs a set of commands using the runners shell
       - name: Rename file
-        run: if [ -n "${{ secrets.RESULT_EXT }}"]; then mv ./${{ secrets.RESULT_NAME }}.zip ./${{ secrets.RESULT_NAME }}.${{ secrets.RESULT_EXT }}; fi;
+        run: if [ -n "${{ secrets.RESULT_EXT }}"]; then  mkdir output && mv ${{ secrets.RESULT_NAME }}.zip output/${{ secrets.RESULT_NAME }}.${{ secrets.RESULT_EXT }}; fi;
 
       - name: Create Release
         id: create_release
@@ -40,6 +40,7 @@ jobs:
           release_name: Release ${{ github.ref }}
           body: ${{ github.event.label.name }}
           draft: true
+
       - name: Upload Release Asset
         id: upload-release-asset 
         uses: actions/upload-release-asset@v1
@@ -47,6 +48,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: ./${{ secrets.RESULT_NAME }}.${{ secrets.RESULT_EXT }}
+          asset_path: output/${{ secrets.RESULT_NAME }}.${{ secrets.RESULT_EXT }}
           asset_name: ${{ secrets.RESULT_NAME }}.${{ secrets.RESULT_EXT }}
           asset_content_type: application/zip

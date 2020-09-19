@@ -44,3 +44,5 @@ To make bridge from Telegram to Minecraft just add RCON connection and command `
 
 If you like it, please use the Sponsor button at the top of this page on GitHub.
 Or [liberapay.com](https://liberapay.com/dmytrohoi) / [monobank.ua](https://donate.dmytrohoi.com/).
+
+![Statistics](https://bstats.org/signatures/bukkit/TelegramBridge.svg)
